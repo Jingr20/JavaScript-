@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyPromise</title>
+</head>
+<body>
+    <script>
+        const PENDING = 'pending';
+        const FULLFILLED = 'fullfilled';
+        const REJECTED = 'rejected';
+
+        class MyPromise{
+            constructor(executor){
+                // 每个promise应该有自己的状态、成功之后的值、失败之后的原因
+                this.status = PENDING;
+                this.value = undefined;
+                this.reason = undefined;
+                // 每个promise的成功回调函数和失败回调函数,用于存储
+                this.onFullfilled = [];
+                this.onRejected = [];
+                // 执行器（回调函数）立即执行，参数是resolve函数和reject函数
+                executor(this.resolve,this.reject);
+            }
+
+            // 原型链上的属性和方法(公用)
+            resolve = (value) => {
+                // 选择箭头函数是因为不会改变this指向，this始终指向MyPromise的实例
+                // 改变promise的状态
+                if(this.status !== PENDING) return;
+                this.status = FULLFILLED;
+                // 保存成功之后的原因（外部传入）
+                this.value = value;
+                // 判断成功回调是否存在，如果存在则调用
+                while(this.onFullfilled.length){
+                    // 弹出第一个，返回值是数组第一个元素
+                    this.onFullfilled.shift()(this.value);
+                }
+            }
+
+            reject = (reason) => {
+                if(this.status !== PENDING) return;
+                this.status = REJECTED;
+                this.reason = reason;
+                // 判断失败回调是否存在，如果存在则调用
+                while(this.onRejected.length){
+                    this.onRejected.shift()(this.reason);
+                }
+            }
+
+            // 参数分别是成功和失败之后的回调函数
+            then = (onFullfilled,onRejected) => {
+                // 需要返回一个新的promise对象
+                let promise2 = new MyPromise((resolve,reject) => {
+                    // 箭头函数不改变this指向，仍然指向原来的promise对象（父作用域中的this）
+                    // 立即执行的执行器，可以将一下代码放入其中
+
+                    // 将此段代码改成异步，是为了拿到promise2
+                    setTimeout(()=>{
+                        if(this.status === FULLFILLED){
+                            // 将回调函数的返回值作为新promise成功之后的值
+                            let x = onFullfilled(this.value);
+                            // 需要对返回值进行判断，是普通值还是promise对象
+                            // 如果是promise对象，就把成功的状态/失败的状态传递给promise2；还要判断返回的promise对象是不是promise2（不允许promise对象自返回）
+                            resolvePromise(promise2,x,resolve,reject);
+                        }else if(this.status === REJECTED){
+                            onRejected(this.reason);
+                        }else{
+                            // 等待状态，先把回调函数存储起来
+                            this.onFullfilled.push(onFullfilled);
+                            this.onRejected.push(onRejected);
+                        }
+                    },0);
+                });
+                return promise2;
+            }
+        }
+
+        function resolvePromise(promise2,x,resolve,reject){
+            // 判断是不是promise对象自返回
+            if(promise2 === x){
+                reject(new TypeError('chaining cycle detected for promise'));
+                return;
+            }
+
+            if(x instanceof MyPromise){
+                // 用then方法判断promise对象的状态，并传递给新对象
+                x.then((value)=>{
+                    resolve(value);
+                },(error)=>{
+                    reject(error);
+                });
+            }else{
+                resolve(x);
+            }
+        }
+
+        let promise = new MyPromise((resolve,reject) => {
+            // setTimeout(()=>{
+            //     resolve('success');
+            // },2000);
+            resolve('success');
+            // reject('fail');
+        });
+
+        /*********** 测试给then添加多个处理函数 ***********/
+        // promise.then(value => {
+        //     console.log('1');
+        //     console.log(value);
+        // },error => {
+        //     console.log(error);
+        // });
+
+        // promise.then(value => {
+        //     console.log('2');
+        //     console.log(value);
+        // },error => {
+        //     console.log(error);
+        // });
+
+        // promise.then(value => {
+        //     console.log('3');
+        //     console.log(value);
+        // },error => {
+        //     console.log(error);
+        // });
+
+        /*********** 测试链式调用 ***********/
+        // promise.then(value => {
+        //     console.log(value);
+        //     return 100;
+        // }).then(value => {
+        //     console.log(value);
+        // });
+
+        /*********** 测试返回值是对象 ***********/
+        // function otherPromise(){
+        //     return new MyPromise((resolve,reject) => {
+        //         resolve('other');
+        //     });
+        // }
+
+        // promise.then(value => {
+        //     console.log(value);
+        //     return otherPromise();
+        // }).then(value => {
+        //     console.log(value);
+        // });
+
+        /*********** 测试是否是promise对象自返回 ***********/
+        let promise1 = promise.then(value => {
+            console.log(value);
+            return promise1;
+        },error => {
+            console.log(error.message)
+        });
+        promise1.then(value => {
+            console.log(value);
+        },error => {
+            console.log(error.message)
+        });
+
+        
+
+
+        
+    </script>
+    
+</body>
+</html>

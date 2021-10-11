@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>doc_3</title>
+    <style>
+        #jindu{
+            height: 50px;
+            /* width: 0px; */
+            background-color: #8e44ad;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="jindu">0%</div>
+
+    <script>
+        /******************************* Promise队列原理 *******************************/
+        // 每次then都返回一个promise对象，下一个then的执行需要等待上一个promise对象的执行
+
+
+        /******************************* 使用Map实现Promise队列 *******************************/
+        function query(num){
+            let promise = Promise.resolve();
+            num.map(v => {
+                // 重点是赋值，更新promise为then返回的对象
+                promise = promise.then(value => {
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            console.log(v);
+                            resolve();
+                        },1000);
+                     });
+                });
+            });
+        };
+
+        num = [1,2,3,4,5];
+        query(num);
+
+        
+        // 案例2
+        function p1(){
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    console.log('p1');
+                    resolve();
+                },1000);
+            });
+        } 
+        function p2(){
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    console.log('p2');
+                    resolve();
+                },1000);
+            });
+        }
+        
+        function query1(num){
+            let promise = Promise.resolve();
+            num.map(v => {
+                // 重点是赋值，更新promise为then返回的对象
+                promise = promise.then(value => {
+                    return v();
+                });
+            });
+        };
+        query1([p1,p2]);
+
+        /******************************* 使用reduce实现Promise队列 *******************************/
+        /*
+        reduce(reducer,[可选initialValue]) 方法对数组中的每个元素执行一个reducer函数，将其结果汇总为单个返回值。
+            1、reducer 函数接收4个参数:
+                Accumulator (acc) (累计器)
+                Current Value (cur) (当前值)
+                Current Index (idx) (当前索引)
+                Source Array (src) (源数组)
+                reducer 函数的返回值分配给累计器，该返回值在数组的每个迭代中被记住，并最后成为最终的单个结果值。
+            2、initialValue
+                （1）作为第一次调用 callback函数时的第一个参数的值。 
+                （2）如果没有提供初始值，则将使用数组中的第一个元素。 在没有初始值的空数组上调用 reduce 将报错。
+                （3）如果没有提供initialValue，reduce 会从索引1的地方开始执行 callback 方法，跳过第一个索引。
+                如果提供initialValue，从索引0开始。
+        */
+
+        function promiseQueueByReduce(num){
+            num.reduce((promise,n) => {
+                // reducer 函数的返回值分配给累计器
+                // 相当于赋值操作
+                return promise.then(value => {
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            console.log(n);
+                            resolve();
+                        },1000);
+                    });
+                });
+            },Promise.resolve());
+        };
+
+        promiseQueueByReduce(num);
+
+        /******************************* 使用队列渲染数据 *******************************/
+
+
+        /******************************* Async 和 Await 语法糖 *******************************/
+        // Async相当于new Promise()
+        // Await相当于.then()，后面跟一个Promise对象，表示等待该对象完成，根据该对象的结果继续往下执行
+
+        async function hd(){
+            // name变量接收这个Promise的返回值
+            let name = await new Promise(resolve => {  // 等待Promise状态改变后才会往下执行，否则暂停
+                setTimeout(() => {
+                    console.log('内部第一个Promise对象');
+                    resolve('name');
+                },1000);
+            });
+            console.log(name)
+
+            let site = await new Promise(resolve => {
+                setTimeout(() => {
+                    console.log('内部第二个Promise对象');
+                    resolve('site');
+                },1000);
+            });
+            console.log(site);
+
+            // 最终等上面的Promise对象完成后，该函数会返回一个成功状态的Promise对象，此值是该对象的返回值。
+            // 也可以直接返回一个新的Promise对象
+            return 'hhhh'; 
+        }
+        
+        hd().then(value => {
+            console.log(value);
+        })
+
+
+
+        /******************************* Async 和 Await 执行异步演示 *******************************/
+        /*
+        async function get(name){
+            let host = 'XXXX';
+            let user = await ajax('xxxxx');
+            let lesson = await ajax(`${user}xxxxxx`);
+            console.log(lesson);
+        }
+        */
+
+        /******************************* async 延时函数 *******************************/
+
+        // 内部不定义，调用函数直接会返回一个状态成功的Promise对象
+        /*
+        async function sleep(){
+
+        }
+        console.log(sleep());
+        */
+
+        async function sleep(){
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve('延迟了2秒');
+                },2000);
+            });
+        }
+
+        async function show(){
+            for(const user of ['JR','ZY']){
+                await sleep();   // 等待Promise状态改变后才会往下执行，否则暂停
+                console.log(user);
+            }
+        }
+        show();
+
+        /******************************* await制作加载进度条 *******************************/
+        /*
+        async function loadUser(users){
+            for(let i=0; i<users.length;i++){
+                let user = await ajax(users[i]);
+                let progress = ((i+1)/users.length)*100;
+                jindu.style.width = progress + '%';
+                jindu.innerHTML = Math.round(progress) + '%';
+            }
+        }
+        loadUser(['JR'],['ZY']);
+        */
+
+        /******************************* class 和 await结合 *******************************/
+        /*
+        class User{
+            constructor(name){
+                this.name = name;
+            }
+            then(resolve,reject){
+                let user = ajax();
+                resolve(user);
+            }
+        }
+
+        async function get(){
+            let user = await new User();
+            console.log(user);
+        }
+        */
+
+        /******************************* async await 多种声明 *******************************/
+        // await一定要在async里面执行
+
+        /******************************* 标准的await错误处理流程 *******************************/
+
+        /******************************* await并行执行技巧 *******************************/
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+    </script>
+    
+</body>
+</html>

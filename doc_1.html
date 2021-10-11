@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>doc_1</title>
+</head>
+<body>
+
+    <script>
+        /******************************* Promise基本用法 *******************************/
+        console.log(window);
+        var promise = new Promise(function(resolve,reject){
+            // 该函数在构造实例的过程当中被同步执行 
+
+            // resolve函数将promise的状态修改为fullFilled，成功
+            // resolve(100);
+
+            // reject函数将promise的状态修改为rejected，失败 
+            reject(new Error('promise rejected'));
+
+        });
+
+        promise.then(function(value){
+            console.log('resolved '+ value);
+        },function(error){
+            console.log('rejected '+ error);
+        });
+
+        console.log('end');
+
+        /******************************* Promise方式的AJAX *******************************/
+        function ajax(url){
+            return new Promise(function(resolve,reject){
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET",url);
+                xhr.responseType = "json";
+                xhr.onload = function(){
+                    if(this.status === 200){
+                        resolve(this.response);
+                    }else{
+                        reject(new Error(this.statusText));
+                    }
+                }
+                xhr.send();
+            });
+        };
+
+        var promise2 = ajax('http://localhost:3000/users').then(function(res){
+            console.log(res);
+        },function(erro){
+            console.log(error);
+        });
+
+        console.log(promise2);
+
+        /******************************* Promise异常处理 *******************************/
+        // 除了可以在对象的then方法中先注册成功回调函数后注册失败回调函数，也可以通过catch方法注册失败回调函数
+        // 推荐这种方式，异常在链上传递
+        // ajax('http://localhost:3000/users')
+        //     .then(function(res){
+        //         console.log(res);
+        //     })
+        //     .catch(function(erro){
+        //         console.log(error);
+        //     });
+
+
+        // 在全局对象注册，去处理代码中未被手动捕获的Promise异常
+        // window.addEventListener('unhandledrejection',event => {
+        //     const {reason,promise} = event;
+        //     console.log(reason,promise);
+        //     event.preventDefault()
+        // },false );
+
+        /******************************* Promise静态方法 *******************************/
+        console.dir(Promise.resolve('foo'));   // 返回一个状态为fullfilled的promise对象,promise对象的返回值是foo
+        Promise.resolve('foo')
+            .then(function(value){
+                // onfullfilled回调函数中拿到的参数是foo
+                console.log(value);
+            })
+        /*
+        该方法等价于
+        new Promise(function(resolve,reject){
+            resolve('foo');
+        })
+        */
+
+
+        // Promise.resolve(Promise对象)，返回的还是该对象
+        /*
+        var promise = ajax('http://localhost:3000/users');
+        var promise2 = Promise.resolve(promise);
+        console.log(promise === promise2);
+        */
+
+
+        // 传then方法参数
+        /*
+        */
+        Promise.resolve({
+            then:function(onFullfilled,Onrejected){
+                onFullfilled('foo');
+            }
+        })
+        .then(function(value){
+            console.log(value);
+        })
+
+        Promise.reject(new Error('rejected'))
+        .catch(function(error){
+            console.log(error);
+        });
+
+        /******************************* Promise并行执行 *******************************/
+
+
+
+          
+    </script>
+    
+</body>
+</html>

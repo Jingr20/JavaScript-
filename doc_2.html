@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>doc_2</title>
+</head>
+<body>
+    <!-- https://www.bilibili.com/video/BV15J411G7FG?from=search&seid=75354011714036077 -->
+    <script>
+        /******************************* 异步加载图片 *******************************/
+        function loadImg(src,resolve,reject){
+            var img = new Image();
+            img.src = src;
+            img.onload = ()=>{
+                resolve(img);
+            }
+            img.onerror = reject;
+        }
+
+        loadImg('images/bird.jpg',function(img){
+            console.log('图片加载成功');
+            document.body.appendChild(img)
+        },function(){
+            console.log('图片加载失败');
+        });
+
+        console.log("----test----");
+
+        /******************************* Promise微任务处理机制 *******************************/
+        // pending 准备阶段
+        // fulfilled 成功状态
+        // rejected 拒绝状态
+        // Promise产生的微任务队列优先级高于普通宏任务队列
+        console.log( 
+            new Promise((resolve,reject) => {
+                // 传入两个函数
+                resolve('成功状态');   // 状态改变产生微任务；只有状态改变才产生微任务
+                // reject('拒绝状态');
+            }).then(value => {
+                console.log('成功业务处理 1');
+            },reason => {
+                console.log('拒绝业务处理');
+            }).then(value => {
+                console.log('成功业务处理 2');
+            },reason => {
+                console.log('拒绝业务处理');
+            })
+        );
+
+        /******************************* 宏任务与微任务执行顺序 *******************************/
+        /*
+        promise
+        主线程
+        成功
+        setTimeout 宏任务
+        */
+        // setTimeout(() => {
+        //     console.log('setTimeout 宏任务');
+        // },0);
+
+        // new Promise(resolve => {
+        //     // 同步执行
+        //     resolve();
+        //     console.log('promise');
+        // }).then(value => {
+        //     console.log('成功');
+        // })
+
+        // console.log('主线程');
+
+
+        /*
+        promise
+        主线程
+        setTimeout 宏任务
+        成功
+        */
+        let promise = new Promise(resolve => {
+            setTimeout(() => {
+                resolve();   // 宏任务已经被放到主线程执行，不能中断；在宏任务执行的过程当中创建微任务；
+                console.log('setTimeout 宏任务');
+            },0);
+            console.log('promise');
+        }).then(value => {
+            console.log('成功');
+        })
+
+        console.log('主线程');
+
+
+        /******************************* Promise单一状态和状态中转 *******************************/
+        let promise1 = new Promise((resolve,reject) => {
+            reject('失败1 ');
+        });
+
+        new Promise(resolve => {
+            resolve(promise1);   // 此时状态变为promise1的状态，rejected（返回promise1）
+        }).then(value => {
+            console.log(value + '成功');
+        },error => {
+            console.log(error + '失败');
+        }).then(value => {       // 此时状态变为成功
+            console.log(value + '成功');
+        },error => {
+            console.log(error + '失败');
+        });
+
+
+        /******************************* Promise.then()也是个promise对象 *******************************/
+        /*
+        p1失败状态
+        p2成功状态
+        */
+        let p1 = new Promise((resolve,reject) => {
+            reject('p1失败');
+        });
+
+        let p2 = p1.then(value => {
+            console.log('p1成功状态');
+        },error => {
+            console.log('p1失败状态');
+        });
+        
+        p2.then(value => {
+            console.log('p2成功状态');
+        },error => {
+            console.log('p2失败状态');
+        });
+
+        // 后面的then是对前面返回的promise的处理
+
+
+        /******************************* 其它类型的Promise封装 *******************************/
+        // 除了可以返回标准的Promise对象，还可以返回普通对象/类
+        // 1、返回带有then的普通对象
+        new Promise((resolve,reject) => {
+            resolve('success');
+        }).then(value => {
+            return {
+                // 含有then方法，且传入resolve与reject，就会被封装为Promise对象
+                then(resolve,reject){
+                    reject('fail');
+                }
+            }
+        },error => {
+            console.log('error');
+        }).then(null,error => {
+            console.log(error);
+        });
+
+        // 2、返回带有then的类
+        new Promise((resolve,reject) => {
+            resolve('success');
+        }).then(value => {
+            class Pro{
+                then(resolve,reject){
+                    reject('fail1');
+                }
+            }
+            return new Pro();
+        },error => {
+            console.log('error');
+        }).then(null,error => {
+            console.log(error);
+        });
+
+        new Promise((resolve,reject) => {
+            resolve('success');
+        }).then(value => {
+            return class{
+                static then(resolve,reject){
+                    reject('fail2');
+                }
+            }
+        },error => {
+            console.log('error');
+        }).then(null,error => {
+            console.log(error);
+        });
+
+
+        /******************************* 使用Promise封装AJAX请求 *******************************/
+        function ajax(url){
+            return new Promise((resolve,reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET',url);
+                xhr.send();
+                xhr.onload = function(){
+                    if(this.status === 200){
+                        resolve(JSON.parse(this.response));
+                    }else{
+                        reject('加载失败');
+                    }
+                };
+                xhr.onerror = function(){
+                    reject(this.error);
+                }
+            });
+        }
+
+        /******************************* Promise错误监测 *******************************/
+        // catch可以对前面的promise对象异常作出统一处理
+        new Promise((resolve,reject) => {
+            reject('p1');
+            // resolve('p1');
+        }).then(value => {
+            console.log('成功p1');
+        }).then(value => {
+            console.log('成功p2');
+        }).catch(error => {
+            console.log(error);
+        });
+
+
+        /******************************* 自定义错误处理 *******************************/
+
+
+        /******************************* 使用finally实现异步加载动画 *******************************/
+        // 无论是成功状态还是失败状态，都会执行
+
+        /******************************* Promise异步加载动画 *******************************/
+        function loadImgUsePromise(src){
+            return new Promise((resolve,reject) => {
+                let img = new Image();
+                img.src = src;
+                // 注意下面误写成函数调用
+                img.onload = () => {
+                    resolve(img);
+                    document.body.appendChild(img);
+                }
+                img.onerror = reject;
+            });
+        }
+
+        loadImgUsePromise('images/bird.jpg').then(image => {
+            image.style.border = "solid 6px gray";
+        },error => {});
+
+
+        /******************************* 封装setTimeout定时器 *******************************/
+        function timeout(delay = 1000){
+            return new Promise( resolve => {
+                setTimeout(resolve,delay);
+            });
+        }
+
+        timeout(2000).then(value => {
+            console.log('timeout1');
+            return timeout(2000);
+        }).then(value => {
+            console.log('timeout2');
+        });
+
+        /******************************* 构建扁平化的setInterval *******************************/
+        function interval(delay = 1000,callback){
+            return new Promise( resolve => {
+                let id = setInterval(() => {
+                    // 需要在一定条件下清除id，故需用到回调函数
+                    callback(id,resolve)
+                }, delay);
+            });
+        }
+
+        interval(3000,(id,resolve) => {
+            console.log(12);
+            clearInterval(id);
+            resolve();
+        }).then(value => {
+            console.log('fullfilled');
+        });
+
+        /******************************* script脚本的promise加载引擎 *******************************/
+        function loadScript(src){
+            return new Promise((resolve,reject) => {
+                let script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    resolve('加载成功');
+                }
+                script.onerror = reject;
+                document.body.appendChild(script);
+            });
+        }
+
+        // xx.js的执行依赖于xxx.js
+        // loadScript('xxx.js').then(script => {
+        //     return loadScript('xx.js');
+        // }).then(script => {
+        //     xx();
+        // }).catch(error => {
+        //     console.log(error);
+        // })
+
+        /******************************* Promise.resolve() 缓存后台数据*******************************/
+        // 本质是new Promise(resolve => { resolve() }) 的简写
+        function query(postId,url){
+            const cache = query.cache || (query.catch = new Map());
+            if(cache.has(postId)){
+                console.log('走缓存了');
+                return Promise.resolve(cache.get(postId));
+            }
+
+            return ajax(url).then(post => {
+                cache.set(postId,post);
+                console.log('没走缓存');
+                return post;
+            });
+        
+        }
+
+        query(1,'http://localhost:3000/posts?id=1').then(post => {
+            console.log(post);
+        });
+
+        setTimeout(() => {
+            query(1,'http://localhost:3000/posts?id=1').then(post => {
+                console.log(post);
+            });
+        },2000)
+
+
+        let hd = {
+            then(resolve,reject){
+                resolve('带有then方法的对象');
+            }
+        };
+        // hd被封装为一个Promise对象
+        // Promise.resolve(p1)，返回的还是 p1 promise对象
+        Promise.resolve(hd).then(value => {
+            console.log(value);
+        });
+
+        /******************************* Promise.reject() *******************************/
+        Promise.reject('Reject ---- fail').then(value => {
+            console.log(value);
+        },error => {
+            console.log(error);
+        });
+
+        new Promise((resolve,reject) => {
+            resolve('**********');
+        }).then(value => {
+            if(value != '成功'){
+                // throw new Error('参数错误');
+                return Promise.reject('参数错误');
+            }
+        }).catch(error => {
+            console.log(error);
+        });
+
+        /******************************* Promise.all() *******************************/
+        // 批量获取数据
+        const promis1 = new Promise((resolve,reject) => {
+            setTimeout(() => {
+                // resolve('第一个异步');
+                reject('第一个fail');
+            },1000);
+        }).catch(error => {
+            console.log(error);
+        });  // then/catch 返回的promise对象默认都是成功，所以下面all方法里是成功的处理函数
+
+        const promis2 = new Promise((resolve,reject) => {
+            setTimeout(() => {
+                resolve('第二个异步');
+            },1000);
+        });
+
+        // 两个都成功，all成功
+        Promise.all([promis1,promis2]).then(value => {
+            console.log(value);
+        }).catch(error => {
+            console.log(error);
+        });
+
+        /******************************* Promise.allSettled() *******************************/
+        // 成功/异常都接收，有status和value两个属性
+        Promise.allSettled([promis1,promis2]).then(value => {
+            console.log(value);
+        });
+        /*
+        0: {status: "fulfilled", value: undefined}
+        1: {status: "fulfilled", value: "第二个异步"}
+        */
+
+        /******************************* Promise.race 后台请求超时处理 *******************************/
+        // 哪个快用哪个promise对象
+        let promises = [
+            ajax('http://localhost:3000/comments'),
+            // 相当于只给了1s的请求时间
+            new Promise((resolve,reject) => {
+                setTimeout(() => {
+                    reject('请求超时');
+                },1000)
+            })
+        ];
+
+        Promise.race(promises).then(value => {
+            console.log(value);
+        }).catch(error => {
+            console.log(error);
+        });
+
+
+        
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+       
+
+    </script>
+    
+</body>
+</html>
